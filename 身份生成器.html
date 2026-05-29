@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>身份生成器</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="身份生成器">
+<meta name="theme-color" content="#6366f1">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text x='50' y='68' text-anchor='middle' font-size='54'>🪪</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text x='50' y='68' text-anchor='middle' font-size='54'>🪪</text></svg>">
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+  background: linear-gradient(160deg, #f0f1ff 0%, #e0e2ff 30%, #ede9fe 60%, #f5f3ff 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.app {
+  width: 90%;
+  max-width: 460px;
+  min-height: 440px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border-radius: 32px;
+  padding: 44px 30px 40px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 12px 40px rgba(99,102,241,0.10);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.app::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  right: -40px;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.page { display: none; }
+.page.active { display: block; }
+
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e1b4b;
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  font-size: 15px;
+  color: #888;
+  margin-bottom: 32px;
+}
+
+/* 步骤点 */
+.steps { display: flex; justify-content: center; gap: 8px; margin-bottom: 28px; }
+.step-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #d4d4d8; transition: all 0.3s;
+}
+.step-dot.done { background: #6366f1; }
+.step-dot.current { background: #6366f1; width: 24px; border-radius: 4px; }
+
+/* 选项卡片 */
+.option-cards { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+
+.option-card {
+  flex: 1 1 calc(50% - 7px);
+  min-width: 130px;
+  padding: 28px 18px;
+  border-radius: 20px;
+  border: 2px solid #e4e4e7;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.option-card:active { transform: scale(0.97); }
+.option-card.active {
+  border-color: #6366f1;
+  background: #eef2ff;
+  box-shadow: 0 4px 16px rgba(99,102,241,0.15);
+}
+.option-card .emoji { font-size: 40px; display: block; margin-bottom: 10px; }
+.option-card .label { font-size: 18px; font-weight: 600; color: #3f3f46; }
+.option-card .desc { font-size: 13px; color: #999; margin-top: 4px; }
+
+/* 年龄滑块 */
+.age-section { padding: 0 10px; }
+.age-display {
+  font-size: 56px; font-weight: 800; color: #6366f1;
+  margin-bottom: 8px; letter-spacing: -2px;
+}
+.age-unit { font-size: 20px; color: #888; margin-bottom: 24px; }
+
+.age-slider {
+  -webkit-appearance: none; width: 100%; height: 6px;
+  border-radius: 3px; background: linear-gradient(to right, #e0e2ff 0%, #6366f1 100%);
+  outline: none;
+}
+.age-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 36px; height: 36px;
+  border-radius: 50%; background: #fff; border: 3px solid #6366f1;
+  box-shadow: 0 2px 8px rgba(99,102,241,0.25); cursor: pointer;
+}
+
+/* 搜索动画 */
+.search-ring {
+  width: 72px; height: 72px; border: 3px solid #e4e4e7;
+  border-top-color: #6366f1; border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 24px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.search-text { font-size: 17px; color: #6366f1; font-weight: 600; }
+
+/* 结果卡片 */
+.result-card {
+  background: linear-gradient(135deg, #faf9ff 0%, #f0eeff 100%);
+  border-radius: 24px; padding: 28px 24px;
+  border: 1.5px solid #e0e0ff;
+  text-align: left;
+}
+.result-avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff; font-size: 30px; line-height: 64px; text-align: center;
+  margin: 0 auto 20px;
+}
+.result-name {
+  font-size: 28px; font-weight: 700; color: #1e1b4b;
+  text-align: center; margin-bottom: 4px;
+}
+.result-city {
+  font-size: 14px; color: #6366f1; text-align: center; margin-bottom: 20px;
+}
+.result-row {
+  display: flex; justify-content: space-between; padding: 12px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 15px;
+}
+.result-row:last-child { border-bottom: none; }
+.result-row .key { color: #888; }
+.result-row .val { color: #1e1b4b; font-weight: 500; text-align: right; }
+
+/* 故事 */
+.story-card {
+  background: #fff; border-radius: 16px; padding: 20px;
+  margin-top: 16px; text-align: left; line-height: 1.8;
+  font-size: 15px; color: #444; border: 1px solid #f0f0f0;
+}
+
+/* 按钮 */
+.btn-row { display: flex; gap: 10px; margin-top: 24px; }
+
+.btn {
+  flex: 1; padding: 15px 20px; border-radius: 16px;
+  border: none; font-size: 16px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; font-family: inherit;
+}
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff; box-shadow: 0 4px 16px rgba(99,102,241,0.3);
+}
+.btn-primary:disabled {
+  background: #d4d4d8; box-shadow: none; color: #999; cursor: not-allowed;
+}
+
+.btn-outline {
+  background: #fff; color: #6366f1; border: 1.5px solid #d4d4d8;
+}
+
+.back-link {
+  display: block; margin-top: 16px; font-size: 14px; color: #999;
+  cursor: pointer; background: none; border: none; font-family: inherit;
+}
+
+@media (max-width: 400px) {
+  .app { padding: 32px 18px 28px; border-radius: 24px; }
+  h1 { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<!-- 第1页：首页 -->
+<div class="page active" id="page1">
+  <h1>🪪 身份生成器</h1>
+  <p class="subtitle">一键生成你的虚拟身份</p>
+  <div style="font-size:72px;margin:20px 0;">🎭</div>
+  <button class="btn btn-primary" style="width:100%;" onclick="goToPage(2)">开始生成</button>
+</div>
+
+<!-- 第2页：选择性别 -->
+<div class="page" id="page2">
+  <div class="steps"><span class="step-dot current" id="d1a"></span><span class="step-dot" id="d2a"></span><span class="step-dot" id="d3a"></span></div>
+  <h1>选择性别</h1>
+  <p class="subtitle">你想生成什么性别的身份？</p>
+  <div class="option-cards">
+    <div class="option-card" onclick="selectGender('male', this)">
+      <span class="emoji">👨</span><span class="label">男</span>
+    </div>
+    <div class="option-card" onclick="selectGender('female', this)">
+      <span class="emoji">👩</span><span class="label">女</span>
+    </div>
+    <div class="option-card" onclick="selectGender('random', this)">
+      <span class="emoji">🎲</span><span class="label">随机</span>
+    </div>
+  </div>
+  <button class="btn btn-primary" id="genderNext" disabled onclick="goToPage(3)" style="width:100%;margin-top:24px;">下一步</button>
+  <button class="back-link" onclick="goToPage(1)">← 返回</button>
+</div>
+
+<!-- 第3页：选择年龄 -->
+<div class="page" id="page3">
+  <div class="steps"><span class="step-dot done" id="d1b"></span><span class="step-dot current" id="d2b"></span><span class="step-dot" id="d3b"></span></div>
+  <h1>选择大致年龄</h1>
+  <p class="subtitle">拖动滑块选择年龄段</p>
+  <div class="age-section">
+    <div class="age-display" id="ageDisplay">28</div>
+    <div class="age-unit">岁</div>
+    <input type="range" class="age-slider" min="18" max="65" value="28" id="ageSlider" oninput="updateAge(this.value)">
+  </div>
+  <button class="btn btn-primary" id="ageNext" onclick="goToSearch()" style="width:100%;margin-top:28px;">🔍 开始生成</button>
+  <button class="back-link" onclick="goToPage(2)">← 返回选性别</button>
+</div>
+
+<!-- 第4页：搜索中 -->
+<div class="page" id="page4">
+  <div style="padding:20px 0;">
+    <div class="search-ring"></div>
+    <p class="search-text" id="searchHint">正在获取位置...</p>
+  </div>
+  <button class="back-link" onclick="goToPage(1)">取消</button>
+</div>
+
+<!-- 第5页：结果 -->
+<div class="page" id="page5">
+  <h1 style="font-size:22px;">✨ 你的虚拟身份</h1>
+  <p class="subtitle" style="margin-bottom:20px;">以下身份纯属虚构，如有雷同纯属巧合</p>
+  <div class="result-card" id="resultCard"></div>
+  <div class="btn-row">
+    <button class="btn btn-outline" onclick="generateNew()">🔄 换一个</button>
+    <button class="btn btn-primary" onclick="goToPage(1)">🏠 重新开始</button>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ==================== 高德API配置 ====================
+var AMAP_KEY = 'c3a5f46d98c7924e1401d5b275739e50';
+
+// ==================== 姓名库 ====================
+var SURNAMES_MALE = ['王','李','张','刘','陈','杨','赵','黄','周','吴','徐','孙','胡','朱','高','林','何','郭','马','罗','梁','宋','郑','谢','韩','唐','冯','于','董','萧'];
+var SURNAMES_FEMALE = ['王','李','张','刘','陈','杨','赵','黄','周','吴','徐','孙','胡','朱','高','林','何','郭','马','罗','梁','宋','郑','谢','韩','苏','叶','沈','林'];
+var SURNAMES = ['王','李','张','刘','陈','杨','赵','黄','周','吴','徐','孙','胡','朱','高','林','何','郭','马','罗','梁','宋','郑','谢','韩','唐','冯','于','董','萧','程','曹','袁','邓','许','傅','沈','曾','彭','吕','苏','卢','蒋','蔡','贾','丁','魏','薛','叶','阎','余','潘','杜','戴','夏','钟','汪','田','任','姜','范','方','石','姚','谭','廖','邹','熊','金','陆','郝','孔','白','崔','康','毛','邱','秦','江','史','顾','侯','邵','孟','龙','万','段','雷','钱','汤','尹','易','常','武','乔','贺','赖','龚','文'];
+
+var GIVEN_MALE = ['伟','强','磊','军','洋','涛','勇','杰','鹏','飞','明','超','浩','宇','波','亮','刚','健','辉','俊','毅','峰','彬','杰','鑫','志','文','宁','龙','林'];
+var GIVEN_FEMALE = ['芳','敏','静','丽','婷','雪','琳','玲','晓','洁','娜','雯','倩','莉','娟','艳','萍','燕','霞','红','慧','云','颖','萱','怡','欣','楠','菲','蕾','琪'];
+var GIVEN_UNISEX = ['文','博','泽','涵','宇','辰','然','铭','瑞','安','远','恒','宁','逸','凡','思','嘉','子','一','之'];
+
+// ==================== 职业库 ====================
+var OCCUPATIONS = {
+  young: {
+    male: ['互联网公司前端开发工程师','新媒体运营','独立摄影师','咖啡师','游戏原画师','电竞教练','短视频编导','健身教练','密室逃脱DM','潮牌买手'],
+    female: ['UI/UX设计师','小红书博主','花艺师','宠物医生助理','电商主播','美妆编辑','剧本杀作者','独立插画师','瑜伽教练','有声书配音员'],
+    any: ['自由撰稿人','外卖平台运营','室内设计助理','旅游定制师','脱口秀演员','乐队贝斯手','烘琣师','民宿管家','动画师','配音演员']
+  },
+  mid: {
+    male: ['建筑项目经理','资深律师','软件架构师','投资顾问','牙科医生','4A广告公司创意总监','汽车工程师','税务师','供应链经理','高级厨师'],
+    female: ['人力资源总监','心理咨询师','注册会计师','大学讲师','品牌策略总监','儿科医生','高级翻译','室内设计事务所合伙人','私募基金分析师','出版编辑'],
+    any: ['产品经理','专栏作家','精品咖啡馆老板','独立书店主理人','纪录片导演','保险精算师','房地产经纪人','旅行社老板','音乐制作人','策展人']
+  },
+  senior: {
+    male: ['中医主任医师','上市公司财务总监','高校教授','建筑设计院总工','律师事务所合伙人','制造业厂长','农业科技公司创始人','书画院院长','鉴定评估专家','国学讲师'],
+    female: ['三甲医院主任医师','大学教授','文化传媒公司董事长','高级会计师','公益基金会秘书长','非遗传承人','艺术培训学校校长','心理咨询中心主任','茶文化研究院理事','珠宝鉴定师'],
+    any: ['政协委员','商会秘书长','退休干部返聘顾问','收藏家','地方志编纂','文化学者','社区调解员','书法老师','太极拳教练','红木家具匠人']
+  }
+};
+
+// 城市工作背景模板
+var WORK_STORIES = {
+  big_city: [
+    '毕业后就来到了{city}，一待就是{years}年。从最初的出租屋到现在的公寓，这个城市见证了一路走来的每一个脚印。平时喜欢在周末逛各种展览和市集，觉得{city}最迷人的地方在于永远有新鲜事发生。',
+    '{years}年前拖着行李箱来到{city}，当时只想着"试试看"。没想到一试就留了下来。现在在{city}有了自己的社交圈，周末约朋友吃个饭、爬个山，日子过得简单但充实。',
+    '在{city}工作生活了{years}年，换了三份工作，搬了四次家。这座城市节奏快、压力大，但也有无限可能。最享受的是加班到深夜，走在灯火通明的街道上，觉得一切努力都值得。',
+    '老家在北方，来{city}是因为大学毕业后的一份offer。一开始很不适应这里的潮湿天气和饮食习惯，现在反而回老家吃不惯了。{city}改变了一个北方人的胃，也改变了看待世界的方式。'
+  ],
+  mid_city: [
+    '在{city}生活了{years}年，看着这座城市一点点变大、变繁华。相比一线城市，这里节奏慢一些，生活成本低一些，但该有的都有。周末最大的爱好是带着家人去周边的农家乐。',
+    '原本只是把{city}当作跳板，打算工作两三年就去更大的城市。没想到{years}年过去了，在这里买了房、结了婚，彻底扎下了根。{city}没有一线城市的压迫感，但发展机会也不差。',
+    '大学在{city}读的，毕业后顺理成章留了下来。{years}年时间，从实习生成为了部门主管。这里没有北上广的焦虑，也不必在通勤上浪费生命，是个很适合生活的地方。'
+  ],
+  small_city: [
+    '土生土长的{city}人，大学考去了省会，毕业后父母希望回来发展。一开始心里有点不甘，但{years}年下来发现小城市有小城市的好——不用挤地铁、不用排长队、朋友都住在附近，生活很安逸。',
+    '从北上广回来已经{years}年了。当初离开大城市不是因为能力不够，而是厌倦了996和内卷。回到{city}后开了一间小店，虽然收入少了很多，但每天睡到自然醒，觉得这才是生活。',
+    '在{city}出生长大，对这个城市的每一条街巷都了如指掌。{years}年前接手了家里的生意，虽然不算大富大贵，但在本地也算有点小名气。没事就约几个发小喝喝茶、打打牌，日子过得有滋有味。'
+  ]
+};
+
+// ==================== 状态变量 ====================
+var gender = null;
+var age = 28;
+var cityName = '';
+var cityType = ''; // big / mid / small
+var searchLat = null;
+var searchLon = null;
+var isSearching = false;
+var _amapCallbackName = null;
+
+// ==================== 页面导航 ====================
+function goToPage(n) {
+  for (var i = 1; i <= 5; i++) {
+    document.getElementById('page' + i).classList.remove('active');
+  }
+  document.getElementById('page' + n).classList.add('active');
+
+  // 清理搜索状态和JSONP残留
+  isSearching = false;
+  var oldScript = document.getElementById('jsonp_script');
+  if (oldScript) document.body.removeChild(oldScript);
+  if (_amapCallbackName && window[_amapCallbackName]) delete window[_amapCallbackName];
+
+  if (n === 1) { gender = null; cityName = ''; cityType = ''; }
+
+  // 更新步骤点
+  if (n <= 3) updateDots(n - 1);
+}
+
+function updateDots(step) {
+  var groups = [['d1a','d2a','d3a'], ['d1b','d2b','d3b']];
+  for (var g = 0; g < groups.length; g++) {
+    for (var i = 0; i < 3; i++) {
+      var el = document.getElementById(groups[g][i]);
+      if (!el) continue;
+      el.className = 'step-dot';
+      if (i < step) el.classList.add('done');
+      if (i === step - 1) el.classList.add('current');
+    }
+  }
+}
+
+// ==================== 选择 ====================
+function selectGender(val, el) {
+  gender = val;
+  var cards = document.querySelectorAll('#page2 .option-card');
+  for (var i = 0; i < cards.length; i++) { cards[i].classList.remove('active'); }
+  el.classList.add('active');
+  document.getElementById('genderNext').disabled = false;
+}
+
+function updateAge(val) {
+  age = parseInt(val);
+  document.getElementById('ageDisplay').textContent = age;
+}
+
+// ==================== 城市等级判断 ====================
+var BIG_CITIES = '北京,上海,广州,深圳,杭州,成都,武汉,南京,重庆,苏州,天津,西安,长沙,郑州,东莞,青岛,宁波,厦门,无锡,合肥,佛山,福州,济南,大连,沈阳';
+var MID_CITIES = '昆明,南昌,南宁,贵阳,太原,石家庄,哈尔滨,长春,兰州,银川,海口,呼和浩特,乌鲁木齐,温州,绍兴,嘉兴,金华,台州,泉州,漳州,珠海,中山,惠州,常州,徐州,南通,扬州,镇江,烟台,威海,潍坊,洛阳,襄阳,宜昌,岳阳,株洲,柳州,桂林,绵阳,宜宾,遵义,三亚,拉萨,西宁,银川';
+
+function classifyCity(name) {
+  if (BIG_CITIES.indexOf(name) !== -1) return 'big';
+  if (MID_CITIES.indexOf(name) !== -1) return 'mid';
+  return 'small';
+}
+
+// ==================== 搜索流程 ====================
+function goToSearch() {
+  if (isSearching) return;
+  isSearching = true;
+
+  goToPage(4);
+  document.getElementById('searchHint').textContent = '正在获取城市...';
+
+  locateByIP();
+}
+
+function locateByIP() {
+  var cbName = '_amap_ip_cb_' + Date.now();
+  _amapCallbackName = cbName;
+
+  var url = 'https://restapi.amap.com/v3/ip' +
+    '?key=' + encodeURIComponent(AMAP_KEY) +
+    '&callback=' + cbName;
+
+  window[cbName] = function(data) {
+    cleanupJSONP();
+    if (data.status === '1') {
+      var c = data.city;
+      if (c && typeof c === 'string' && c.length > 0) {
+        cityName = c.replace(/市$/, '');
+      } else if (data.province && typeof data.province === 'string') {
+        cityName = data.province.replace(/省$/, '').replace(/市$/, '');
+      } else {
+        useRandomCity();
+        showResult();
+        return;
+      }
+      cityType = classifyCity(cityName);
+    } else {
+      useRandomCity();
+    }
+    showResult();
+  };
+
+  injectJSONP(url, cbName);
+}
+
+function injectJSONP(url, cbName) {
+  var script = document.createElement('script');
+  script.id = 'jsonp_script';
+  script.src = url;
+  script.onerror = function() {
+    cleanupJSONP();
+    useRandomCity();
+    showResult();
+  };
+
+  var timeoutId = setTimeout(function() {
+    if (window[cbName]) {
+      cleanupJSONP();
+      useRandomCity();
+      showResult();
+    }
+  }, 6000);
+
+  var origCb = window[cbName];
+  window[cbName] = function(data) {
+    clearTimeout(timeoutId);
+    origCb(data);
+  };
+
+  document.body.appendChild(script);
+}
+
+function cleanupJSONP() {
+  var script = document.getElementById('jsonp_script');
+  if (script) document.body.removeChild(script);
+  if (_amapCallbackName && window[_amapCallbackName]) {
+    delete window[_amapCallbackName];
+  }
+}
+
+function useRandomCity() {
+  cityName = ['杭州','成都','武汉','南京','西安','长沙','苏州','宁波','厦门','青岛','郑州','昆明','合肥','沈阳','大连'][Math.floor(Math.random() * 15)];
+  cityType = classifyCity(cityName);
+}
+
+// ==================== 生成身份 ====================
+function generateIdentity() {
+  // 确定性别
+  var actualGender;
+  if (gender === 'random') {
+    actualGender = Math.random() < 0.5 ? 'male' : 'female';
+  } else {
+    actualGender = gender;
+  }
+
+  // 生成姓名
+  var surname;
+  if (actualGender === 'male') {
+    surname = SURNAMES_MALE[Math.floor(Math.random() * SURNAMES_MALE.length)];
+  } else {
+    surname = SURNAMES_FEMALE[Math.floor(Math.random() * SURNAMES_FEMALE.length)];
+  }
+
+  var given;
+  if (Math.random() < 0.3) {
+    // 30%概率使用中性名
+    given = GIVEN_UNISEX[Math.floor(Math.random() * GIVEN_UNISEX.length)];
+    if (Math.random() < 0.5) given += GIVEN_UNISEX[Math.floor(Math.random() * GIVEN_UNISEX.length)];
+  } else if (actualGender === 'male') {
+    given = GIVEN_MALE[Math.floor(Math.random() * GIVEN_MALE.length)];
+    if (Math.random() < 0.4) given += GIVEN_MALE[Math.floor(Math.random() * GIVEN_MALE.length)];
+  } else {
+    given = GIVEN_FEMALE[Math.floor(Math.random() * GIVEN_FEMALE.length)];
+    if (Math.random() < 0.4) given += GIVEN_FEMALE[Math.floor(Math.random() * GIVEN_FEMALE.length)];
+  }
+
+  // 生成职业
+  var ageGroup;
+  if (age < 25) ageGroup = 'young';
+  else if (age <= 40) ageGroup = 'mid';
+  else ageGroup = 'senior';
+
+  var occPool = OCCUPATIONS[ageGroup][actualGender] || OCCUPATIONS[ageGroup]['any'];
+  var occPoolAny = OCCUPATIONS[ageGroup]['any'];
+  var combined = occPool.concat(occPoolAny);
+  var occupation = combined[Math.floor(Math.random() * combined.length)];
+
+  // 生成在该城市工作的年限
+  var yearsInCity;
+  if (ageGroup === 'young') yearsInCity = Math.floor(Math.random() * 3) + 1;
+  else if (ageGroup === 'mid') yearsInCity = Math.floor(Math.random() * 8) + 5;
+  else yearsInCity = Math.floor(Math.random() * 20) + 10;
+
+  if (yearsInCity > age - 18) yearsInCity = age - 18;
+
+  // 选择故事模板
+  var storyPool = WORK_STORIES[cityType + '_city'] || WORK_STORIES['mid_city'];
+  var story = storyPool[Math.floor(Math.random() * storyPool.length)]
+    .replace(/{city}/g, cityName + '市')
+    .replace(/{years}/g, yearsInCity);
+
+  return {
+    name: surname + given,
+    gender: actualGender === 'male' ? '男' : '女',
+    age: age,
+    occupation: occupation,
+    yearsInCity: yearsInCity,
+    city: cityName + '市',
+    story: story
+  };
+}
+
+function showResult() {
+  isSearching = false;
+  goToPage(5);
+
+  var identity = generateIdentity();
+  var avatar = identity.gender === '男' ? '👨' : '👩';
+
+  var html = '';
+  html += '<div class="result-avatar">' + avatar + '</div>';
+  html += '<div class="result-name">' + identity.name + '</div>';
+  html += '<div class="result-city">📍 ' + identity.city + '</div>';
+  html += '<div class="result-row"><span class="key">性别</span><span class="val">' + identity.gender + '</span></div>';
+  html += '<div class="result-row"><span class="key">年龄</span><span class="val">' + identity.age + '岁</span></div>';
+  html += '<div class="result-row"><span class="key">职业</span><span class="val">' + identity.occupation + '</span></div>';
+  html += '<div class="result-row"><span class="key">在' + identity.city + '</span><span class="val">' + identity.yearsInCity + '年</span></div>';
+  html += '<div class="story-card">📖 ' + identity.story + '</div>';
+
+  document.getElementById('resultCard').innerHTML = html;
+}
+
+function generateNew() {
+  // 重新随机一个身份（不重新定位）
+  showResult();
+}
+</script>
+
+</body>
+</html>
